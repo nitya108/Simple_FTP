@@ -1,10 +1,8 @@
-import time
-import signal
-import socket
-import inspect
-import struct
-import sys
 import threading
+import sys
+import time
+import struct
+import socket
 
 TIMEOUT_TIMER = 3
 DATA_PACKET_IDENTIFIER = 21845
@@ -16,7 +14,6 @@ packets_sent = 0
 total_no_packets = 1
 ack_of_packet = 0
 lock = threading.Lock()
-
 
 def perform_timeout_operation(n, self, server):
     if buffer_for_sending.get(current_ack):
@@ -169,7 +166,7 @@ def main():
     file_data = FILE.read(MSS)
     seq = 1
     while file_data:
-        file_content = str(file_data)
+        file_content = str(file_data,'UTF-8',errors='replace')
         checksum = checksum_computation(file_content)
         checksum = struct.pack('=H', checksum)
         seq_no = struct.pack('=L',seq)
