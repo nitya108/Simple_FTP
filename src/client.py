@@ -3,6 +3,7 @@ import sys
 import time
 import struct
 import socket
+from util import checksum_calculation
 
 TIMEOUT_TIMER = 3
 DATA_PACKET_IDENTIFIER = 21845
@@ -56,47 +57,17 @@ class Sender(threading.Thread):
                 lock.acquire()
                 if current_ack < total_no_packets and current_ack < n:
                     perform_timeout_operation(n, self, server)
-                    # if buffer_for_sending.get(current_ack):
-                    #     try:
-                    #         if (time.time()-((buffer_for_sending[current_ack])[1])) >= TIMEOUT_TIMER:
-                    #             for cur_pkt in range(current_ack, n):
-                    #                 file_data = buffer_for_sending [cur_pkt][0]
-                    #                 buffer_for_sending[cur_pkt] = (file_data, time.time())
-                    #                 self.client.sendto(file_data,server)
-                    #                 print('Timeout, Sequence Number = '+str(cur_pkt))
-                    #     except KeyError:
-                    #         print(" ")
                 lock.release()
 
             lock.acquire()
             if total_no_packets <= self.N and current_ack < n:
                 perform_timeout_operation(n, self, server)
-                # if buffer_for_sending.get(current_ack):
-                #     try:
-                #         if (time.time()-((buffer_for_sending[current_ack])[1])) >= TIMEOUT_TIMER:
-                #             for cur_pkt in range(current_ack, n):
-                #                 file_data = buffer_for_sending [cur_pkt][0]
-                #                 buffer_for_sending[cur_pkt] = (file_data, time.time())
-                #                 self.client.sendto(file_data,server)
-                #                 print('Timeout, Sequence Number = '+str(cur_pkt))
-                #     except KeyError:
-                #         print(" ")
             lock.release()
 
 
             lock.acquire()
             if current_ack < total_no_packets and current_ack < n:
                 perform_timeout_operation(n, self, server)
-                # if buffer_for_sending.get(current_ack):
-                #     try:
-                #         if (time.time()-((buffer_for_sending[current_ack])[1])) >= TIMEOUT_TIMER:
-                #             for cur_pkt in range(current_ack, n):
-                #                 file_data = buffer_for_sending [cur_pkt][0]
-                #                 buffer_for_sending[cur_pkt] = (file_data, time.time())
-                #                 self.client.sendto(file_data,server)
-                #                 print('Timeout, Sequence Number = '+str(cur_pkt))
-                #     except KeyError:
-                #         print(" ")
             lock.release()
 
             lock.acquire()
@@ -138,17 +109,6 @@ class Acknowledgment(threading.Thread):
             print("Error")
             self.client.close()
 
-def compute_carry(a, b):
-    return ((a+b) & 0xffff) + ((a + b) >> 16)
-
-def checksum_computation(data):
-    sum = 0
-    for i in range(0, len(data) - len(data) % 2, 2):
-        data = str(data)
-        w = ord(data[i]) + (ord(data[i + 1]) << 8)
-        sum = compute_carry(sum, w)
-    return ~sum & 0xffff
-
 def main():
     hostname = sys.argv[1]
     portnumber = int(sys.argv[2])
@@ -167,7 +127,7 @@ def main():
     seq = 1
     while file_data:
         file_content = str(file_data,'UTF-8',errors='replace')
-        checksum = checksum_computation(file_content)
+        checksum = checksum_calculation(file_content)
         checksum = struct.pack('=H', checksum)
         seq_no = struct.pack('=L',seq)
         data = file_content.encode('ISO-8859-1','ignore')
