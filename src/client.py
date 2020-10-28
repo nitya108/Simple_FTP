@@ -19,32 +19,31 @@ TIMER       = 3
 lock = threading.Lock()
 
 class Acknowledgment(threading.Thread):
+    
     def __init__(self, client):
         threading.Thread.__init__(self)
         self.client = client
         self.start()
 
     def run(self):
-        global buffer_for_sending
-        global lock
         global current_ack
-        global total_no_packets
         global ack_of_packet
-
         try:
-            while ack_of_packet < total_no_packets:
-                ack, address = self.client.recvfrom(2048)
-                ack_of_packet  = ack_of_packet + 1
-                current_ack = current_ack + 1
+            while True:
+                if ack_of_packet < total_no_packets:
 
-                running_seq = struct.unpack('=I', ack[0:4])
-                running_seq = int(running_seq[0])
-                check_ack = struct.unpack('=H', ack[6:8])
-                
-                if check_ack[0] == PACKET_ID:
-                    lock.acquire()
-                    del buffer_for_sending[running_seq-1]
-                    lock.release()
+                    ack, addr = self.client.recvfrom(2048)
+                    ack_of_packet  = ack_of_packet + 1
+                    current_ack = current_ack + 1
+
+                    running_seq = struct.unpack('=I', ack[0:4])
+                    running_seq = int(running_seq[0])
+                    check_ack = struct.unpack('=H', ack[6:8])
+
+                    if PACKET_ID == check_ack[0]:
+                        lock.acquire()
+                        del buffer_for_sending[running_seq-1]
+                        lock.release()
 
         except ConnectionResetError:
             print("Error")
@@ -102,6 +101,7 @@ class Sender(threading.Thread):
                         print('TIMEOUT!! SEQ NO = '+str(cur_pkt))
             except KeyError:
                 print("...")
+
 
 def main():
 
