@@ -2,6 +2,7 @@ import socket
 import sys
 import struct
 import random
+from util import checksum_calculation
 
 pkt_ack = 43690
 null_string = 0
@@ -49,20 +50,9 @@ def server_receiver():
             print('PACKET LOSS,SEQUENCE NUMBER = '+ str(num_sequence[0]))
         else:
             if seq == num_sequence[0]:
-                if checksum[0] == checksum_computation(data):
+                if checksum[0] == checksum_calculation(data):
                     wite_to_file(fname, data, seq, pkt_ack, receiver, checksum, addr)
                     seq += 1
-
-def carry_around_add(x, y):
-    return ((x + y) & 0xffff) + ((x + y) >> 16)
-
-def checksum_computation(data_msg):
-    add = 0
-    for i in range(0, len(data_msg) - len(data_msg) % 2, 2):
-        data_msg = str(data_msg)
-        w = ord(data_msg[i]) + (ord(data_msg[i + 1]) << 8)
-        add = carry_around_add(add, w)
-    return ~add & 0xffff
 
 if __name__ == '__main__':
     server_receiver()
