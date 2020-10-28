@@ -29,21 +29,19 @@ class Acknowledgment(threading.Thread):
         global current_ack
         global ack_of_packet
         try:
-            while True:
-                if ack_of_packet < total_no_packets:
+            while ack_of_packet < total_no_packets:
+                ack, address = self.client.recvfrom(2048)
+                ack_of_packet  = ack_of_packet + 1
+                current_ack = current_ack + 1
 
-                    ack, addr = self.client.recvfrom(2048)
-                    ack_of_packet  = ack_of_packet + 1
-                    current_ack = current_ack + 1
+                running_seq = struct.unpack('=I', ack[0:4])
+                running_seq = int(running_seq[0])
+                check_ack = struct.unpack('=H', ack[6:8])
 
-                    running_seq = struct.unpack('=I', ack[0:4])
-                    running_seq = int(running_seq[0])
-                    check_ack = struct.unpack('=H', ack[6:8])
-
-                    if PACKET_ID == check_ack[0]:
-                        lock.acquire()
-                        del buffer_for_sending[running_seq-1]
-                        lock.release()
+                if check_ack[0] == PACKET_ID:
+                    lock.acquire()
+                    del buffer_for_sending[running_seq-1]
+                    lock.release()
 
         except ConnectionResetError:
             print("Error")

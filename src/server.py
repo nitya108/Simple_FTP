@@ -2,7 +2,7 @@ import socket
 import sys
 import struct
 import random
-from util import checksum_calculation
+from util import checksum_calculation, message_from_sender
 
 pkt_ack = 43690
 null_string = 0
@@ -17,15 +17,7 @@ def wite_to_file(file_name, data, expected_sequence, data_packet_acknowledgment,
         acknowledgment = seq_number + null + acknowledgment_sent
         soc_receiver.sendto(acknowledgment, address)
 
-def message_from_sender(data_msg):
-    s_num = struct.unpack('=L', data_msg[0:4])
-    checksum = struct.unpack('=H', data_msg[4:6])
-    pkt = struct.unpack('=h', data_msg[6:8])
-    data = (data_msg[8:])
-    msg = data.decode('ISO-8859-1','ignore')
-    return s_num, checksum, pkt, msg
-
-def server_receiver():
+def main():
     port = int(sys.argv[1])
     fname = sys.argv[2]
     prob = float(sys.argv[3])
@@ -55,4 +47,4 @@ def server_receiver():
                     seq += 1
 
 if __name__ == '__main__':
-    server_receiver()
+    main()

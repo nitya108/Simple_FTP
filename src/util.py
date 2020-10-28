@@ -1,3 +1,5 @@
+import struct
+
 def checksum_calculation(data):
     sum = 0
     modulo2 = len(data) - len(data) % 2
@@ -18,3 +20,11 @@ def print_result(hostname,portnumber,N,MSS,end,start):
     print('MSS:\t'+str(MSS))
     print('Window Size:\t'+ str(N))
     print('Total Time\t'+str(timediff))    
+
+def message_from_sender(data_msg):
+    s_num = struct.unpack('=L', data_msg[0:4])
+    checksum = struct.unpack('=H', data_msg[4:6])
+    pkt = struct.unpack('=h', data_msg[6:8])
+    data = (data_msg[8:])
+    msg = data.decode('ISO-8859-1','ignore')
+    return s_num, checksum, pkt, msg
