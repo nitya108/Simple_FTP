@@ -18,7 +18,7 @@ TIMER       = 3
 
 lock = threading.Lock()
 
-class Acknowledgment(threading.Thread):
+class ackclass(threading.Thread):
     
     def __init__(self, client):
         threading.Thread.__init__(self)
@@ -47,7 +47,7 @@ class Acknowledgment(threading.Thread):
             print("Error")
             self.client.close()
 
-class Sender(threading.Thread):
+class serverclass(threading.Thread):
     def __init__(self, portnumber, hostname, client, file, MSS, N):
         threading.Thread.__init__(self)
         self.portnumber = portnumber
@@ -135,8 +135,8 @@ def main():
         seq += 1
     total_no_packets = len(data_buffer)
 
-    ACKs = Acknowledgment(client)
-    transmitted_data = Sender(portnumber, hostname, client, file, MSS, N)
+    ACKs = ackclass(client)
+    transmitted_data = serverclass(portnumber, hostname, client, file, MSS, N)
     transmitted_data.join()
     ACKs.join()
     end = time.time()
