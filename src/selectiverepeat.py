@@ -10,31 +10,30 @@ bitflag = True
 
 TIMEOUT_TIMER = 0.2
 
-def check_checksum(content, cs):
+def check_checksum(cs,content):
 	sum = 0
-	
-	for i in range(0, len(content), 2):
-		if i+1 < len(content):
-			data16 = ord(content[i]) + (ord(content[i+1]) << 8)		
-			interSum = sum + data16
-			sum = (interSum & 0xffff) + (interSum >> 16)		
-	currChk = sum & 0xffff 
-	result = currChk & cs
-	
-	if result != 0:
-		return False
-	else:
+	x = len(content)
+	for d in range(0, x, 2):
+		p = d+1
+		if len(content) > p:
+			temp = sum + ord(content[d]) + (ord(content[p]) << 8)	
+			sum = (temp >> 16) + (temp & 0xffff) 	
+	t = sum & 0xffff 
+	final = t & cs
+	if final == 0:
 		return True
-
-def ackss(seqAcked, type):
-	seqNum 		 = struct.pack('=I', seqAcked)		
-	if type != 0:
-		zero16 	 = struct.pack('=H', 1)
 	else:
-		zero16 	 = struct.pack('=H', 0)
-	ackIndicator = struct.pack('=H',43690)		
-	packet_ack = seqNum+zero16+ackIndicator
-	return packet_ack
+		return False
+
+def ackss(ack, hum):
+	num = struct.pack('=I', ack)		
+	if hum == 0:
+		buff = struct.pack('=H', 0)
+	else:
+		buff = struct.pack('=H', 1)
+	indi = struct.pack('=H',43690)		
+	seg = num + buff + indi
+	return seg
 
 class client(threading.Thread):
 	def __init__(self, hostname, portnumber, file, n, MSS, socket, receiver):
@@ -138,7 +137,7 @@ class receiver(threading.Thread):
 				ackReceived, _ = self.sockconn.recvfrom(2048)			 
 				sequ , buff, number = self.parseMsg(ackReceived)
 				if int(buff[0]) > 0:
-					print('Receiver Terminated')
+					print('Server Shutdown')
 					break		
 				if int(number[0]) == 43690:
 					if int(sequ[0]) in win:
@@ -147,5 +146,5 @@ class receiver(threading.Thread):
 						del win[int(sequ[0])]
 						lock.release()
 		except:
-			print('Server closed its connection - Receiver')
+			print('Please check server - connection terminated!!!')
 			self.sockconn.close()

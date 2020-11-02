@@ -37,11 +37,11 @@ def greeting(port,fname,prob,host):
     print("Host \t\t\t: "+ host)
     print("\n")
 
-def wite_to_file( seq, file, content,socket, checksum, ack, addr):
+def wite_to_file( seq, file, second,socket, checksum, ack, addr):
 
     with open(file, 'ab') as file:
         print("Message size recived: " + str(checksum[0]))
-        file.write(str.encode(content))
+        file.write(str.encode(second))
         seq_number = struct.pack('=I', seq)
         null = struct.pack('=H', 0)
         
@@ -54,3 +54,12 @@ def message(data):
 		check = struct.unpack('=H', data[6:])			
 		seq_number = struct.unpack('=I', data[0:4])			
 		return seq_number, bitbuffer, check
+
+def sr_messages(msg):				
+    first = msg[0:8]
+    seq = struct.unpack('=I',first[0:4])
+    cs = struct.unpack('=H',first[4:6])
+    id = struct.unpack('=H',first[6:])
+    second = msg[8:]
+    content = second.decode('UTF-8')
+    return cs, seq, content, id
