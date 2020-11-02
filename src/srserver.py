@@ -2,80 +2,53 @@ import sys
 import socket
 import struct
 import random
-import threading
+from selectiverepeat import check_checksum, ackss
 
 def unpack_message(msg):					#Parsing the Message received from client
 	header = msg[0:8]
-	data = msg[8:]	
-	sequenceNum = struct.unpack('=I',header[0:4])		
-	checksum = struct.unpack('=H',header[4:6])
+	content = msg[8:]	
+	seq = struct.unpack('=I',header[0:4])		
+	cs = struct.unpack('=H',header[4:6])
 	identifier = struct.unpack('=H',header[6:])
-	dataDecoded = data.decode('UTF-8')	
-	return sequenceNum, checksum, identifier, dataDecoded
-	
-def generate_ack_packets(seqAcked, type):
-	seqNum 		 = struct.pack('=I', seqAcked)	#SEQUENCE NUMBER BEING ACKED	
-	if type != 0:
-		zero16 	 = struct.pack('=H', 1)
-	else:
-		zero16 	 = struct.pack('=H', 0)
-	ackIndicator = struct.pack('=H',43690)		#ACK INDICATOR - 1010101010101010[INT 43690]
-	ackPacket = seqNum+zero16+ackIndicator
-	return ackPacket
-
-def verifyChecksum(data, checksum):
-	sum = 0
-	
-	for i in range(0, len(data), 2):
-		if i+1 < len(data):
-			data16 = ord(data[i]) + (ord(data[i+1]) << 8)		#To take 16 bits at a time
-			interSum = sum + data16
-			sum = (interSum & 0xffff) + (interSum >> 16)		#To ensure 16 bits
-	currChk = sum & 0xffff 
-	result = currChk & checksum
-	
-	if result != 0:
-		return False
-	else:
-		return True
+	dataDecoded = content.decode('UTF-8')	
+	return seq, cs, identifier, dataDecoded
 	
 def main():
-	port = int(sys.argv[1])		#PORT ON WHICH SERVER WILL ACCEPT UDP PACKETS
-	filename = sys.argv[2]		#NAME OF THE NEW FILE CREATED
-	prob = float(sys.argv[3])	#PACKET DROP PROBABILITY
-	buffer = {}			
-	flag = True
-	maxSeqNum = 0
+	port = int(sys.argv[1])		
+	file = sys.argv[2]		
+	probability_value = float(sys.argv[3])	
+	window = {}			
+	check = True
+	seq_number = 0
 	
-	server_socket  = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)	
+	socket_conn  = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)	
 	host = socket.gethostname()
-	server_socket.bind((host,port)) 
+	socket_conn.bind((host,port)) 
 	
 		
-	while flag or len(buffer) < maxSeqNum:
-		receivedMsg, sender_addr = server_socket.recvfrom(1024)
-		sequenceNum, checksum, identifier, data = unpack_message(receivedMsg) 
-		if random.uniform(0,1) <= prob:
-			print('PACKET LOSS, SEQUENCE NUMBER = '+str(sequenceNum[0]))
+	while check or len(window) < seq_number:
+		msg, addre = socket_conn.recvfrom(1024)
+		seq, cs, _ , content = unpack_message(msg) 
+		if random.uniform(0,1) <= probability_value:
+			print('PACKET LOSS, SEQUENCE NUMBER = '+str(seq[0]))
 		else:
-			chksumVerification = verifyChecksum(data, int(checksum[0]))
-			if chksumVerification == True:
-				if data == '00000end11111':
-					flag = False
-					maxSeqNum = int(sequenceNum[0])
-				elif data != '00000end11111' and int(sequenceNum[0]) not in buffer:
-						buffer[int(sequenceNum[0])] = data						
-				ackPacket = generate_ack_packets(int(sequenceNum[0]),0)
-				server_socket.sendto(ackPacket,sender_addr)
+			if check_checksum(content, int(cs[0])) == True:
+				if content == '00000end11111':
+					check = False
+					seq_number = int(seq[0])
+				elif content != '00000end11111' and int(seq[0]) not in window:
+						window[int(seq[0])] = content						
+				packet_ack = ackss(int(seq[0]),0)
+				socket_conn.sendto(packet_ack,addre)
 	
-	ackPacket = generate_ack_packets(maxSeqNum+1,1)
-	server_socket.sendto(ackPacket,sender_addr)
-	fileHandler = open(filename,'a')
-	for i in range(0, maxSeqNum):
-		fileHandler.write(buffer[i])
-	fileHandler.close()
+	packet_ack = ackss(seq_number+1,1)
+	socket_conn.sendto(packet_ack,addre)
+	f = open(file,'a')
+	for i in range(0, seq_number):
+		f.write(window[i])
+	f.close()
 	print('File Received Successfully at the Server')
-	server_socket.close()	
+	socket_conn.close()	
 	
 if __name__ == '__main__':	
 	main()

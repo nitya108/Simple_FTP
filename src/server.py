@@ -2,7 +2,7 @@ import socket
 import sys
 import struct
 import random
-from util import checksum_calculation, message_from_sender, wite_to_file, greeting
+from util import checksum_calculation, sender, wite_to_file, greeting
 
 pkt_ack = 46710
 
@@ -19,13 +19,13 @@ def main():
 
     while True:
         data_msg, addr = receiver.recvfrom(2048)
-        num_sequence, checksum, _ , data = message_from_sender(data_msg)
+        num_sequence, _ , data, checksum = sender(data_msg)
         print('SEQ: ' +str(num_sequence[0]))
 
         if( random.random() > prob ):
             if seq == num_sequence[0]:
                 if checksum[0] == checksum_calculation(data):
-                    wite_to_file(fname, data, seq, pkt_ack, receiver, checksum, addr)
+                    wite_to_file(seq, fname, data, receiver, checksum, pkt_ack,addr)
                     seq += 1
         else:
             seqno=str(num_sequence[0])

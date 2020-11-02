@@ -10,6 +10,32 @@ bitflag = True
 
 TIMEOUT_TIMER = 0.2
 
+def check_checksum(content, cs):
+	sum = 0
+	
+	for i in range(0, len(content), 2):
+		if i+1 < len(content):
+			data16 = ord(content[i]) + (ord(content[i+1]) << 8)		
+			interSum = sum + data16
+			sum = (interSum & 0xffff) + (interSum >> 16)		
+	currChk = sum & 0xffff 
+	result = currChk & cs
+	
+	if result != 0:
+		return False
+	else:
+		return True
+
+def ackss(seqAcked, type):
+	seqNum 		 = struct.pack('=I', seqAcked)		
+	if type != 0:
+		zero16 	 = struct.pack('=H', 1)
+	else:
+		zero16 	 = struct.pack('=H', 0)
+	ackIndicator = struct.pack('=H',43690)		
+	packet_ack = seqNum+zero16+ackIndicator
+	return packet_ack
+
 class client(threading.Thread):
 	def __init__(self, hostname, portnumber, file, n, MSS, socket, receiver):
 		threading.Thread.__init__(self)					
@@ -33,10 +59,12 @@ class client(threading.Thread):
 		lock.acquire()
 		for seg in win:
 			constraint = time.time() - win[seg][1]
-			if constraint > TIMEOUT_TIMER and win[seg][2] == 0:
-				print('Timeout, SEQ =\t'+str(seg))
-				win[seg] = (win[seg][0], time.time(), 0)
-				self.sock.sendto(win[seg][0],(hostname, portnumber))
+			if constraint > TIMEOUT_TIMER:
+				if win[seg][2] == 0 :
+					print('Timeout, SEQ =\t'+str(seg))
+					m =win[seg][0]
+					win[seg] = ( m, time.time(), 0)
+					self.sock.sendto(m,(hostname, portnumber))
 		lock.release()
 
 	def message_from_sender(self, content, num_seq):
@@ -60,22 +88,23 @@ class client(threading.Thread):
 			b = f.read(1)
 			sendMsg += str(b,'UTF-8')
 			if len(sendMsg) == self.MSS or (not b):		
-				while len(win) >= self.n:
+				while self.n <= len(win):
 					self.check_timeout(self.portnumber,self.hostname)
 				lock.acquire()
+
 				seg = self.message_from_sender(sendMsg, currSeq)				
 				win[currSeq] = (seg, time.time(), 0)
 				self.sock.sendto(seg,(self.hostname, self.portnumber))
 				lock.release()
 				currSeq += 1
 				sendMsg = ''
-						
-		sendMsg = '00000end11111'
+						 
 		lock.acquire()
-		seg = self.message_from_sender(sendMsg, currSeq)				
+		seg = self.message_from_sender('00000end11111', currSeq)				
 		win[currSeq] = (seg, time.time(), 0)
 		self.sock.sendto(seg,(self.hostname, self.portnumber))
 		lock.release()
+
 		seq_max = currSeq
 		while len(win) > 0:
 			self.check_timeout(self.portnumber,self.hostname)
@@ -89,14 +118,14 @@ class receiver(threading.Thread):
 		self.file = file				
 		self.n    = int(n)				
 		self.MSS  = int(MSS)			
-		self.sockAddr = socket
+		self.sockconn = socket
 		self.start()
 	
 	def parseMsg(self, msg):
-		zero16 = struct.unpack('=H', msg[4:6])				
-		identifier = struct.unpack('=H', msg[6:])			
-		seq_number = struct.unpack('=I', msg[0:4])			
-		return seq_number, zero16, identifier
+		buff = struct.unpack('=H', msg[4:6])				
+		number = struct.unpack('=H', msg[6:])			
+		sequ = struct.unpack('=I', msg[0:4])			
+		return sequ, buff, number
 		
 	def run(self):
 		global lock	
@@ -106,17 +135,17 @@ class receiver(threading.Thread):
 		bitflag = True
 		try:
 			while bitflag == True or len(win) > 0:			
-				ackReceived, server_addr = self.sockAddr.recvfrom(2048)			 
-				seq_number , zero16, identifier = self.parseMsg(ackReceived)
-				if int(zero16[0]) > 0:
+				ackReceived, _ = self.sockconn.recvfrom(2048)			 
+				sequ , buff, number = self.parseMsg(ackReceived)
+				if int(buff[0]) > 0:
 					print('Receiver Terminated')
 					break		
-				if int(identifier[0]) == 43690 and int(seq_number[0]) in win:
-					lock.acquire()
-					setTime = win[int(seq_number[0])][1]
-					win[int(seq_number[0])] = (win[int(seq_number[0])][0],setTime, 1)					
-					del win[int(seq_number[0])]
-					lock.release()
+				if int(number[0]) == 43690:
+					if int(sequ[0]) in win:
+						lock.acquire()
+						win[int(sequ[0])] = (win[int(sequ[0])][0],win[int(sequ[0])][1], 1)					
+						del win[int(sequ[0])]
+						lock.release()
 		except:
 			print('Server closed its connection - Receiver')
-			self.sockAddr.close()
+			self.sockconn.close()
