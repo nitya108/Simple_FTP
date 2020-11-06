@@ -31,6 +31,7 @@ def sender(data_msg):
     return s_num, pkt, msg, checksum
 
 def greeting(port,fname,prob,host):
+    print("------------------------------------ SERVER SIDE ------------------------------------------")
     print("Server Portnumber \t: " + str(port))
     print("File being written \t: " + fname)
     print("P value \t\t: " + str(prob))

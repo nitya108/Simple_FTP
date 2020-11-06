@@ -1,6 +1,5 @@
 import sys
 import socket
-import struct
 import random
 from selectiverepeat import check_checksum, ackss
 from util import sr_messages

@@ -118,6 +118,7 @@ def main():
     client_port_no = 4445
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client.bind((IPclient,client_port_no))
+    print("------------------------------------ CLIENT SIDE ------------------------------------------")
 
     FILE = open(file,'rb')
     file_data = FILE.read(MSS)
