@@ -11,22 +11,31 @@ def main():
 	port = int(sys.argv[1])		
 	file = sys.argv[2]		
 	probability_value = float(sys.argv[3])	
+	host = socket.gethostname()
+
+	print("------------------------------------ SERVER SIDE ------------------------------------------")
+	print("Port Number:\t", port)
+	print("Filename:\t", file)
+	print("p value:\t", probability_value)
+	print('Hostname:\t', host)
 
 	socket_conn  = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)	
-	host = socket.gethostname()
 	socket_conn.bind((host,port)) 	
 		
 	while len(window) < seq_number or check:
 
 		msg, addre = socket_conn.recvfrom(1024)
 		cs, seq, content, _ = sr_messages(msg) 
+		flag =1
 
 		if probability_value <= random.uniform(0,1):
+			if flag == 0:
+				print ("content not received")
 			if check_checksum(int(cs[0]), content) == True:
-				if content != '00000end11111':
+				if content != '00000stuff11111':
 					if int(seq[0]) not in window:
 						window[int(seq[0])] = content	
-				elif content == '00000end11111':
+				elif content == '00000stuff11111':
 					check = False
 					seq_number = int(seq[0])				
 				packet_ack = ackss(int(seq[0]),0)

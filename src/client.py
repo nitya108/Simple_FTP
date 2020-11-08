@@ -3,13 +3,11 @@ import sys
 import time
 import struct
 import socket
-from util import checksum_calculation,print_result
+from util import checksum_calculation,print_result, decode_msg, client_greeting
 
 data_buffer         = []
 buffer_for_sending  = {'a':'a'}
 current_ack         = 0
-seq_latest          = 0
-packets_sent        = 0
 ack_of_packet       = 0
 total_no_packets    = 1
 
@@ -23,6 +21,7 @@ class ackclass(threading.Thread):
     def __init__(self, client):
         threading.Thread.__init__(self)
         self.client = client
+        self.flag =1
         self.start()
 
     def run(self):
@@ -30,13 +29,13 @@ class ackclass(threading.Thread):
         global ack_of_packet
         try:
             while ack_of_packet < total_no_packets:
-                ack, address = self.client.recvfrom(2048)
+                ack, _ = self.client.recvfrom(2048)
                 ack_of_packet  = ack_of_packet + 1
                 current_ack = current_ack + 1
-
-                running_seq = struct.unpack('=I', ack[0:4])
-                running_seq = int(running_seq[0])
-                check_ack = struct.unpack('=H', ack[6:8])
+                if self.flag == 0:
+                    print("ACK received")
+                    self.flag +=1
+                running_seq,  check_ack = decode_msg(ack)
 
                 if check_ack[0] == PACKET_ID:
                     lock.acquire()
@@ -56,6 +55,7 @@ class serverclass(threading.Thread):
         self.file = file
         self.MSS  = MSS
         self.N    = N
+        self.flag = 1
         self.start()
 
     def run(self):
@@ -65,19 +65,22 @@ class serverclass(threading.Thread):
 
         while total_no_packets > ack_of_packet :
             while n - current_ack >= self.N:
+                if self.flag == 0:
+                    print("getting ack")
+                    self.flag +=1
                 lock.acquire()
                 if current_ack < n and current_ack < total_no_packets:
-                    self.perform_timeout_operation(n, server)
+                    self.func_timeout(n, server)
                 lock.release()
 
             lock.acquire()
             if current_ack < n and total_no_packets <= self.N:
-                self.perform_timeout_operation(n, server)
+                self.func_timeout(n, server)
             lock.release()
 
             lock.acquire()
             if current_ack < n and current_ack < total_no_packets:
-                self.perform_timeout_operation(n, server)
+                self.func_timeout(n, server)
             lock.release()
 
             lock.acquire()
@@ -87,12 +90,18 @@ class serverclass(threading.Thread):
                 n = n + 1
             lock.release()
 
-    def perform_timeout_operation(self, n, server):
+    def func_timeout(self, n, server):
         if buffer_for_sending.get(current_ack):
             try:
+                if self.flag == 0:
+                    print("buffer")
+                    self.flag +=1
                 packet_time = (time.time()-((buffer_for_sending[current_ack])[1]))
                 if packet_time >= TIMER:
                     for cur_pkt in range(current_ack, n):
+                        if self.flag == 0:
+                            print("received")
+                            self.flag +=1
                         file_data = buffer_for_sending [cur_pkt][0]
                         buffer_for_sending[cur_pkt] = (file_data, time.time())
                         self.client.sendto(file_data,server)
@@ -101,13 +110,15 @@ class serverclass(threading.Thread):
                 print("...")
 
 
-def main():
+def rdt_send():
 
     hostname = sys.argv[1]
     portnumber = int(sys.argv[2])
     file = sys.argv[3]
     N = int(sys.argv[4])
     MSS = int(sys.argv[5])
+
+    client_greeting(portnumber,file,hostname, MSS, N)
 
     global data_buffer
     global total_no_packets
@@ -118,7 +129,7 @@ def main():
     client_port_no = 4445
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client.bind((IPclient,client_port_no))
-    print("------------------------------------ CLIENT SIDE ------------------------------------------")
+    
 
     FILE = open(file,'rb')
     file_data = FILE.read(MSS)
@@ -147,4 +158,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    rdt_send()

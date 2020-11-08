@@ -1,6 +1,5 @@
 import struct
 
-
 def checksum_calculation(data):
     sum = 0
     modulo2 = len(data) - len(data) % 2
@@ -18,9 +17,15 @@ def print_result(hostname,portnumber,N,MSS,end,start):
     print('\t')
     print('Hostname:\t'+str(hostname))
     print('Port Number:\t'+str(portnumber))
-    print('MSS:\t'+str(MSS))
+    print('MSS:\t\t'+str(MSS))
     print('Window Size:\t'+ str(N))
     print('Total Time\t'+str(timediff))    
+
+def decode_msg(ack):
+    running_seq = struct.unpack('=I', ack[0:4])
+    running_seq = int(running_seq[0])
+    check_ack = struct.unpack('=H', ack[6:8])
+    return running_seq,check_ack
 
 def sender(data_msg):
     s_num = struct.unpack('=L', data_msg[0:4])
@@ -30,12 +35,21 @@ def sender(data_msg):
     msg = data.decode('ISO-8859-1','ignore')
     return s_num, pkt, msg, checksum
 
-def greeting(port,fname,prob,host):
+def server_greeting(port,fname,prob,host):
     print("------------------------------------ SERVER SIDE ------------------------------------------")
     print("Server Portnumber \t: " + str(port))
     print("File being written \t: " + fname)
     print("P value \t\t: " + str(prob))
     print("Host \t\t\t: "+ host)
+    print("\n")
+
+def client_greeting(port,file,host, MSS, N):
+    print("------------------------------------ CLIENT SIDE ------------------------------------------")
+    print("Hostname \t: " + str(host))
+    print("Port Number \t: " + str(port))
+    print("Filename \t: " + str(file))
+    print("N \t\t: "+ str(N))
+    print("MSS \t\t: "+ str(MSS))
     print("\n")
 
 def wite_to_file( seq, file, second,socket, checksum, ack, addr):

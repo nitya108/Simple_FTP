@@ -54,10 +54,13 @@ class client(threading.Thread):
 		global lock
 		global win
 		global seq_max
+		p = False
 		
 		lock.acquire()
 		for seg in win:
 			constraint = time.time() - win[seg][1]
+			if p:
+				m =win[seg][0]
 			if constraint > TIMEOUT_TIMER:
 				if win[seg][2] == 0 :
 					print('Timeout, SEQ =\t'+str(seg))
@@ -81,6 +84,7 @@ class client(threading.Thread):
 		currSeq = 0
 		sendMsg = ''
 		b = True
+		m =0
 
 		f = open(self.file,'rb')
 		while b:
@@ -89,6 +93,7 @@ class client(threading.Thread):
 			if len(sendMsg) == self.MSS or (not b):		
 				while self.n <= len(win):
 					self.check_timeout(self.portnumber,self.hostname)
+					m +=1
 				lock.acquire()
 
 				seg = self.message_from_sender(sendMsg, currSeq)				
@@ -99,7 +104,7 @@ class client(threading.Thread):
 				sendMsg = ''
 						 
 		lock.acquire()
-		seg = self.message_from_sender('00000end11111', currSeq)				
+		seg = self.message_from_sender('00000stuff11111', currSeq)				
 		win[currSeq] = (seg, time.time(), 0)
 		self.sock.sendto(seg,(self.hostname, self.portnumber))
 		lock.release()
@@ -107,8 +112,14 @@ class client(threading.Thread):
 		seq_max = currSeq
 		while len(win) > 0:
 			self.check_timeout(self.portnumber,self.hostname)
-		f.close()	
-		
+		f.close()
+
+def parseMsg(msg):
+	buff = struct.unpack('=H', msg[4:6])				
+	number = struct.unpack('=H', msg[6:])			
+	sequ = struct.unpack('=I', msg[0:4])			
+	return sequ, buff, number	
+	
 class receiver(threading.Thread):
 	def __init__(self, hostname, portnumber, file, n, MSS, socket):		
 		threading.Thread.__init__(self)
@@ -118,32 +129,34 @@ class receiver(threading.Thread):
 		self.n    = int(n)				
 		self.MSS  = int(MSS)			
 		self.sockconn = socket
+		self.flag = 1
 		self.start()
-	
-	def parseMsg(self, msg):
-		buff = struct.unpack('=H', msg[4:6])				
-		number = struct.unpack('=H', msg[6:])			
-		sequ = struct.unpack('=I', msg[0:4])			
-		return sequ, buff, number
 		
 	def run(self):
 		global lock	
 		global win
 		global bitflag
+		flag = 1
 
 		bitflag = True
 		try:
-			while bitflag == True or len(win) > 0:			
+			while len(win) > 0 or bitflag == True:			
 				ackReceived, _ = self.sockconn.recvfrom(2048)			 
-				sequ , buff, number = self.parseMsg(ackReceived)
+				sequ , buff, number = parseMsg(ackReceived)
+				if flag ==0:
+					print("empty win")
+					flag =1
 				if int(buff[0]) > 0:
 					print('Server Shutdown')
 					break		
+				if self.flag == 0:
+					print(self.flag)
+					self.flag +=1
 				if int(number[0]) == 43690:
 					if int(sequ[0]) in win:
 						lock.acquire()
-						win[int(sequ[0])] = (win[int(sequ[0])][0],win[int(sequ[0])][1], 1)					
-						del win[int(sequ[0])]
+						win[ int(sequ[0]) ] = ( win[int( sequ[0] )][0] , win[int( sequ[0] )][1] , 1)					
+						del win[ int(sequ[0]) ]
 						lock.release()
 		except:
 			print('Please check server - connection terminated!!!')
